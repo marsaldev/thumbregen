@@ -1,0 +1,35 @@
+{
+  "name": "marsaldev/thumbregen",
+  "description": "CLI commands to regenerate PrestaShop product thumbnails by product, category and image type",
+  "license": "AFL-3.0",
+  "authors": [
+    {
+      "name": "Marco Salvatore (marsaldev)",
+      "email": "hi@marcosalvatore.dev"
+    }
+  ],
+  "require": {
+    "php": ">=7.2.5"
+  },
+  "type": "prestashop-module",
+  "minimum-stability": "stable",
+  "config": {
+    "preferred-install": "dist",
+    "prepend-autoloader": false,
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "7.2.5"
+    }
+  },
+  "autoload": {
+    "psr-4": {
+      "Marsaldev\\Module\\ThumbRegen\\": "src/"
+    },
+    "classmap": [
+      "thumbregen.php"
+    ],
+    "exclude-from-classmap": [
+      "vendor/"
+    ]
+  }
+}

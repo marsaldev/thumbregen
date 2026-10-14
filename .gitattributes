@@ -1,0 +1,4 @@
+# Excluded from `git archive`, and therefore from the release zip
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/CLAUDE.md export-ignore

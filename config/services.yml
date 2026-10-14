@@ -1,0 +1,40 @@
+services:
+  _defaults:
+    public: false
+
+  # Explicit "class" everywhere: module services are loaded after Symfony's ResolveClassPass,
+  # so a service id alone is not enough (PS 8.0 fails container compilation without it).
+  thumbregen.database_client:
+    class: Marsaldev\Module\ThumbRegen\Service\DatabaseClient
+
+  thumbregen.image_type_provider:
+    class: Marsaldev\Module\ThumbRegen\Service\ImageTypeProvider
+
+  thumbregen.product_selector:
+    class: Marsaldev\Module\ThumbRegen\Service\ProductSelector
+    arguments:
+      - '@thumbregen.database_client'
+
+  thumbregen.thumbnail_regenerator:
+    class: Marsaldev\Module\ThumbRegen\Service\ThumbnailRegenerator
+    arguments:
+      - '@thumbregen.database_client'
+
+  thumbregen.command.regenerate_product_thumbnails:
+    class: Marsaldev\Module\ThumbRegen\Command\RegenerateProductThumbnailsCommand
+    arguments:
+      - '@thumbregen.product_selector'
+      - '@thumbregen.thumbnail_regenerator'
+      - '@thumbregen.image_type_provider'
+      - '@thumbregen.database_client'
+      - '@prestashop.adapter.legacy_context_loader'
+    tags:
+      - { name: console.command, command: 'thumbregen:products:regenerate' }
+
+  thumbregen.command.list_image_types:
+    class: Marsaldev\Module\ThumbRegen\Command\ListImageTypesCommand
+    arguments:
+      - '@thumbregen.image_type_provider'
+      - '@thumbregen.thumbnail_regenerator'
+    tags:
+      - { name: console.command, command: 'thumbregen:products:list-types' }

@@ -1,0 +1,17 @@
+# IDE and local tooling
+.idea/
+.mcp.json
+CLAUDE.local.md
+
+# Written by PrestaShop in the module folder when the module list is loaded
+/config*.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Composer: generated autoload, built into the release zip
+/vendor/
+
+# Release build output
+/build/
