@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-14
+
 ### Added
 - PrestaShop 9.0 compatibility (PHP 8.1 – 8.4), verified by the integration tests.
 - CI on GitHub Actions: PHP lint from 7.2 to 8.4, and integration tests that install PrestaShop 8.0, 8.1, 8.2 and 9.0 in Docker and run the commands against the demo catalog.
@@ -18,5 +20,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automatic reconnection on "MySQL server has gone away" during long runs.
 - Exit codes: `0` success, `1` invalid arguments or fatal error, `2` completed with errors on some images.
 
-[Unreleased]: https://github.com/marsaldev/thumbregen/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/marsaldev/thumbregen/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/marsaldev/thumbregen/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/marsaldev/thumbregen/releases/tag/v1.0.0
