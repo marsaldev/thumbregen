@@ -14,10 +14,10 @@ Hard invariants from the README:
 
 ## Compatibility constraints
 
-- Targets **PrestaShop 8.0–8.2+** and **PHP >= 7.2.5** (`composer.json` pins `platform.php` to 7.2.5). The existing code uses no scalar/return type declarations, no typed properties and no `strict_types`. Don't introduce PHP 7.4+/8.x syntax. The local CLI may be a much newer PHP, so a passing `php -l` doesn't prove 7.2 compatibility.
+- Targets **PrestaShop 8.0–9.0** and **PHP >= 7.2.5** (`composer.json` pins `platform.php` to 7.2.5). The existing code uses no scalar/return type declarations, no typed properties and no `strict_types`. Don't introduce PHP 7.4+/8.x syntax. The local CLI may be a much newer PHP, so a passing `php -l` doesn't prove 7.2 compatibility.
 - Symfony 4.4 on PS 8.0: there are no `Command::SUCCESS/FAILURE` constants, so the command defines its own `EXIT_*` constants.
 - Every service in `config/services.yml` needs an explicit `class:` because module services load after Symfony's `ResolveClassPass` (PS 8.0 container compilation fails otherwise).
-- Core version differences are confined to `ThumbnailRegenerator::resolveGenerationFormats()`: PS 8.0 is jpg only, and 8.1+ uses `ImageFormatConfiguration` (looked up via `class_exists`) for webp/avif/png. Keep version branching there.
+- Core version differences are confined to `ThumbnailRegenerator::resolveGenerationFormats()`: PS 8.0 is jpg only, and 8.1+ (9.0 included, where the feature flag is gone) uses `ImageFormatConfiguration` (looked up via `class_exists`) for webp/avif/png. Keep version branching there.
 
 ## Architecture
 
@@ -58,4 +58,6 @@ composer dump-autoload -o    # after cloning, editing composer.json or adding cl
 php -l src/Service/ThumbnailRegenerator.php
 ```
 
-There is no test suite, and the store-root `composer php-cs-fixer`/`phpstan` configs don't cover `modules/`. Verify changes with `--dry-run -v`/`-vv` on a single product before running on a category or the whole catalog.
+Integration tests (Docker required): `tests/integration/run.sh <prestashop/prestashop tag>` (for example `8.0-7.2`, `8.2-8.1`, `9.0-8.4`). The script installs PrestaShop with its demo catalog in throwaway containers, installs the module from the working tree (it generates `vendor/` with `COMPOSER_BIN`, default `composer`) and asserts on exit codes, output and the thumbnail files. Set `KEEP=1` to keep the containers for debugging. A PrestaShop install takes about 20–60 s. `.github/workflows/ci.yml` runs the same script on the PS × PHP matrix listed in the README compatibility table, plus `php -l` on PHP 7.2–8.4. Keep that table, the workflow matrix and the README badges in sync.
+
+There are no unit tests, and the store-root `composer php-cs-fixer`/`phpstan` configs don't cover `modules/`.

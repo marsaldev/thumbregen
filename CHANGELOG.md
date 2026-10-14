@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- PrestaShop 9.0 compatibility (PHP 8.1 – 8.4), verified by the integration tests.
+- CI on GitHub Actions: PHP lint from 7.2 to 8.4, and integration tests that install PrestaShop 8.0, 8.1, 8.2 and 9.0 in Docker and run the commands against the demo catalog.
+
 ## [1.0.0] - 2026-10-14
 
 ### Added

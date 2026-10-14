@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, to catch new PrestaShop patch releases behind the floating image tags
+    - cron: '0 4 * * 1'
+
+jobs:
+  lint:
+    name: Lint PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: php -l
+        run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l > /dev/null
+
+  integration:
+    name: PrestaShop ${{ matrix.prestashop }} / PHP ${{ matrix.php }}
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { prestashop: '8.0', php: '7.2' }
+          - { prestashop: '8.0', php: '8.1' }
+          - { prestashop: '8.1', php: '7.2' }
+          - { prestashop: '8.1', php: '8.1' }
+          - { prestashop: '8.2', php: '7.2' }
+          - { prestashop: '8.2', php: '8.1' }
+          - { prestashop: '9.0', php: '8.1' }
+          - { prestashop: '9.0', php: '8.4' }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PrestaShop and run the commands
+        run: tests/integration/run.sh "${{ matrix.prestashop }}-${{ matrix.php }}"

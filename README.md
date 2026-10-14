@@ -1,13 +1,42 @@
 # thumbregen
 
+[![CI](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/marsaldev/thumbregen)](https://github.com/marsaldev/thumbregen/releases/latest)
+[![PrestaShop](https://img.shields.io/badge/PrestaShop-8.0%20%7C%208.1%20%7C%208.2%20%7C%209.0-DF0067)](#compatibility)
+[![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%207.2.5-777BB4?logo=php&logoColor=white)](#compatibility)
+[![License](https://img.shields.io/github/license/marsaldev/thumbregen)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/marsaldev/thumbregen/total)](https://github.com/marsaldev/thumbregen/releases)
+
 *Versione italiana: [README-IT.md](README-IT.md)*
 
 PrestaShop module **with no back-office interface** that adds two Symfony Console commands to regenerate product image thumbnails selectively (by product, by category, by image type). It is designed for large catalogs and for running from cron.
 
-- PrestaShop **8.0, 8.1, 8.2** (and later 8.x)
-- PHP **>= 7.2.5** (the minimum supported by PS 8.0)
+- PrestaShop **8.0 → 9.0**, PHP **>= 7.2.5** (see [Compatibility](#compatibility))
 - No hooks, no tables, no configuration: installing the module only registers the commands.
 - Original images are never modified: only the derived thumbnails are regenerated.
+
+## Compatibility
+
+| PrestaShop | PHP supported by PrestaShop | Thumbnail formats generated | Tested in CI on |
+|---|---|---|---|
+| 8.0.x | 7.2 – 8.1 | jpg | ✅ PHP 7.2, 8.1 |
+| 8.1.x | 7.2 – 8.1 | jpg + webp/avif/png enabled in *Design > Image Settings* (requires the *Multiple image formats* feature flag) | ✅ PHP 7.2, 8.1 |
+| 8.2.x | 7.2 – 8.1 | same as 8.1 | ✅ PHP 7.2, 8.1 |
+| 9.0.x | 8.1 – 8.4 | jpg + webp/avif/png enabled in *Design > Image Settings* | ✅ PHP 8.1, 8.4 |
+| 1.7.x and older | | | ❌ not supported |
+
+Every push and a weekly scheduled run install each PrestaShop version above with its demo catalog in Docker ([official `prestashop/prestashop` images](https://hub.docker.com/r/prestashop/prestashop)), install the module and run the commands against it ([`tests/integration/run.sh`](tests/integration/run.sh)). The tests cover:
+- regeneration by product, by category with subcategories and for the whole catalog (product counts checked against the database);
+- `--type`, `--delete-old` and `--dry-run`, plus webp generation on 8.1+;
+- invalid arguments (exit `1`), corrupt originals (skipped, exit `0`) and unwritable image folders (exit `2`).
+
+The PHP files are also linted on every PHP version from 7.2 to 8.4.
+
+To run the integration tests locally (requires Docker):
+
+```bash
+tests/integration/run.sh 8.2-8.1    # any prestashop/prestashop image tag, <PrestaShop>-<PHP>
+```
 
 ## Installation
 
@@ -116,6 +145,7 @@ A fatal error halfway through the run (e.g. DB still unreachable after the recon
 - **Version differences** (isolated in `ThumbnailRegenerator::resolveGenerationFormats()`):
   - PS 8.0: `.jpg` only.
   - PS 8.1 / 8.2: `jpg` plus the formats enabled in *Design > Image Settings* (webp, avif, png) through `ImageFormatConfiguration`, if the `multiple_image_format` feature flag is enabled.
+  - PS 9.0: same as 8.1 / 8.2, without the feature flag.
 - **Watermark**: after generation, for each image the module calls `hookActionWatermark` on the active modules hooked to `actionWatermark` in the shop, passing only the selected types in `image_type` (as the core does). The official `watermark` module applies the watermark to the types configured in its panel: if a selected type is among them, the thumbnail is overwritten with the watermarked version, as happens from the back office.
   **Warning**: the `watermark` module 2.0.0 does not really filter by `image_type` (its `array_intersect` on arrays of arrays always matches), so for every processed image it also rewrites the other types configured in its panel (`{id}-{type}.jpg` and `{id}-{type}-{hash}.jpg`), with the same result as before. The back office behaves the same way. The watermark module only works on `.jpg` files (neither webp/avif nor 2x).
 - **Per-image errors**: missing or corrupt original ⇒ warning, image skipped, run continues. Resize failed ⇒ error, run continues. PHP warnings and exceptions from core/third-party modules are caught per image.
