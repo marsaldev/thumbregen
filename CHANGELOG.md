@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-16
+
 ### Added
 - `--product-file=PATH` option: regenerates only the products whose IDs are listed in a CSV or text file (ID in the first column, optional header, `,` `;` tab or `|` separators). Unknown IDs are reported as a warning and ignored.
 - Module icon (`logo.png`, shown in the back-office Module Manager) and README banner.
@@ -24,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automatic reconnection on "MySQL server has gone away" during long runs.
 - Exit codes: `0` success, `1` invalid arguments or fatal error, `2` completed with errors on some images.
 
-[Unreleased]: https://github.com/marsaldev/thumbregen/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/marsaldev/thumbregen/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/marsaldev/thumbregen/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/marsaldev/thumbregen/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/marsaldev/thumbregen/releases/tag/v1.0.0

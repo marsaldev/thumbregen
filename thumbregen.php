@@ -22,7 +22,7 @@ class Thumbregen extends Module
     {
         $this->name = 'thumbregen';
         $this->tab = 'administration';
-        $this->version = '1.1.0';
+        $this->version = '1.2.0';
         $this->author = 'Marco Salvatore';
         $this->need_instance = 0;
         $this->bootstrap = false;
