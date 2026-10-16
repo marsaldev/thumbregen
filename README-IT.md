@@ -1,6 +1,6 @@
 # thumbregen
 
-![thumbregen: rigenera le miniature dei prodotti PrestaShop da riga di comando](.github/assets/banner.png)
+![thumbregen: rigenera le miniature dei prodotti PrestaShop da riga di comando](https://raw.githubusercontent.com/marsaldev/thumbregen/main/.github/assets/banner.png)
 
 [![CI](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/marsaldev/thumbregen)](https://github.com/marsaldev/thumbregen/releases/latest)

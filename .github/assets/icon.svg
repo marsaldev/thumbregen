@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>thumbregen</title>
+  <rect width="512" height="512" rx="116" fill="#2340D8"/>
+  <!-- original image (large) -->
+  <rect x="112" y="112" width="288" height="288" rx="20" fill="none" stroke="#FFFFFF" stroke-width="24"/>
+  <circle cx="334" cy="178" r="26" fill="#FFFFFF"/>
+  <!-- selected thumbnail type (medium) -->
+  <path d="M100 216 H276 a20 20 0 0 1 20 20 V412 H120 a20 20 0 0 1 -20 -20 Z" fill="#FFC233"/>
+  <!-- smallest thumbnail -->
+  <path d="M100 304 H188 a20 20 0 0 1 20 20 V412 H120 a20 20 0 0 1 -20 -20 Z" fill="#FFFFFF"/>
+</svg>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  :root { --cobalt:#2340D8; --cobalt-deep:#1B33B8; --white:#FFFFFF; --amber:#FFC233; --mist:#C7D1FF; }
+  * { margin:0; box-sizing:border-box; }
+  html, body { width:1280px; height:400px; background:var(--cobalt); overflow:hidden; }
+  body { font-family:'Bricolage Grotesque', sans-serif; color:var(--white); display:flex; align-items:center; padding:0 88px; gap:64px; }
+  .text { flex:1; }
+  .brand { display:flex; align-items:center; gap:22px; }
+  .brand svg { width:84px; height:84px; flex:none; }
+  h1 { font-size:76px; font-weight:700; letter-spacing:-0.03em; line-height:1; }
+  p { margin-top:26px; font-size:27px; font-weight:500; line-height:1.3; color:var(--mist); max-width:30ch; }
+  code { display:inline-block; margin-top:28px; font-family:'JetBrains Mono', monospace; font-size:17px; color:var(--white); background:var(--cobalt-deep); padding:10px 16px; border-radius:8px; white-space:nowrap; }
+  code span { color:var(--amber); }
+  .chart { flex:none; width:280px; height:300px; position:relative; }
+  .chart svg { position:absolute; inset:0; }
+  .chart text { font-family:'JetBrains Mono', monospace; font-size:14px; }
+</style></head>
+<body>
+  <div class="text">
+    <div class="brand">
+      <svg viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="116" fill="#FFFFFF" fill-opacity=".12"/>
+        <rect x="112" y="112" width="288" height="288" rx="20" fill="none" stroke="#FFFFFF" stroke-width="24"/>
+        <circle cx="334" cy="178" r="26" fill="#FFFFFF"/>
+        <path d="M100 216 H276 a20 20 0 0 1 20 20 V412 H120 a20 20 0 0 1 -20 -20 Z" fill="#FFC233"/>
+        <path d="M100 304 H188 a20 20 0 0 1 20 20 V412 H120 a20 20 0 0 1 -20 -20 Z" fill="#FFFFFF"/>
+      </svg>
+      <h1>thumbregen</h1>
+    </div>
+    <p>Regenerate PrestaShop product thumbnails from the command line, only where you need them.</p>
+    <code>bin/console thumbregen:products:regenerate <span>--type=home_default</span></code>
+  </div>
+  <div class="chart">
+    <svg viewBox="0 0 280 300">
+      <!-- large_default 800x800 -->
+      <rect x="10" y="30" width="260" height="260" rx="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+      <text x="10" y="18" fill="#C7D1FF">large_default  800×800</text>
+      <circle cx="222" cy="78" r="18" fill="#FFFFFF"/>
+      <!-- home_default 250x250, selected -->
+      <rect x="10" y="150" width="140" height="140" rx="10" fill="#FFC233"/>
+      <text x="22" y="174" fill="#1B33B8" font-weight="500">home_default</text>
+      <text x="22" y="192" fill="#1B33B8">250×250</text>
+      <!-- small_default 98x98 -->
+      <rect x="10" y="236" width="54" height="54" rx="8" fill="#FFFFFF"/>
+      <text x="78" y="282" fill="#1B33B8">98×98</text>
+    </svg>
+  </div>
+</body></html>

@@ -1,6 +1,6 @@
 # thumbregen
 
-![thumbregen: regenerate PrestaShop product thumbnails from the command line](.github/assets/banner.png)
+![thumbregen: regenerate PrestaShop product thumbnails from the command line](https://raw.githubusercontent.com/marsaldev/thumbregen/main/.github/assets/banner.png)
 
 [![CI](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/marsaldev/thumbregen)](https://github.com/marsaldev/thumbregen/releases/latest)
