@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- `--product-file=PATH` option: regenerates only the products whose IDs are listed in a CSV or text file (ID in the first column, optional header, `,` `;` tab or `|` separators). Unknown IDs are reported as a warning and ignored.
+- Module icon (`logo.png`, shown in the back-office Module Manager) and README banner.
+
 ## [1.1.0] - 2026-10-14
 
 ### Added

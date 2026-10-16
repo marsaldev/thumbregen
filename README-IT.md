@@ -1,5 +1,7 @@
 # thumbregen
 
+![thumbregen: rigenera le miniature dei prodotti PrestaShop da riga di comando](.github/assets/banner.png)
+
 [![CI](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/marsaldev/thumbregen/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/marsaldev/thumbregen)](https://github.com/marsaldev/thumbregen/releases/latest)
 [![PrestaShop](https://img.shields.io/badge/PrestaShop-8.0%20%7C%208.1%20%7C%208.2%20%7C%209.0-DF0067)](#compatibilità)
@@ -9,7 +11,7 @@
 
 *English version: [README.md](README.md)*
 
-Modulo PrestaShop **senza interfaccia di back office** che aggiunge due comandi Symfony Console per rigenerare i thumbnail delle immagini prodotto in modo selettivo (per prodotto, per categoria, per tipo di immagine), pensato per cataloghi grandi e per essere lanciato da cron.
+Modulo PrestaShop **senza interfaccia di back office** che aggiunge due comandi Symfony Console per rigenerare i thumbnail delle immagini prodotto in modo selettivo (per prodotto, per elenco di prodotti da file CSV, per categoria, per tipo di immagine), pensato per cataloghi grandi e per essere lanciato da cron.
 
 - PrestaShop **da 8.0 a 9.0**, PHP **>= 7.2.5** (vedi [Compatibilità](#compatibilità))
 - Nessun hook, nessuna tabella, nessuna configurazione: l'installazione registra solo i comandi.
@@ -26,7 +28,7 @@ Modulo PrestaShop **senza interfaccia di back office** che aggiunge due comandi 
 | 1.7.x e precedenti | | | ❌ non supportato |
 
 A ogni push, e una volta a settimana, la CI installa in Docker ciascuna versione di PrestaShop della tabella con il catalogo demo ([immagini ufficiali `prestashop/prestashop`](https://hub.docker.com/r/prestashop/prestashop)), installa il modulo e ci lancia i comandi ([`tests/integration/run.sh`](tests/integration/run.sh)). I test coprono:
-- rigenerazione per prodotto, per categoria con sottocategorie e su tutto il catalogo (numero di prodotti confrontato con il database);
+- rigenerazione per prodotto, per file prodotti (intestazione, duplicati e ID inesistenti), per categoria con sottocategorie e su tutto il catalogo (numero di prodotti confrontato con il database);
 - `--type`, `--delete-old` e `--dry-run`, più la generazione dei webp da 8.1 in poi;
 - argomenti non validi (exit `1`), originali corrotti (saltati, exit `0`) e cartelle immagini non scrivibili (exit `2`).
 
@@ -79,6 +81,7 @@ php bin/console thumbregen:products:regenerate [opzioni]
 | Opzione | Descrizione |
 |---|---|
 | `--product=ID` | Limita a un singolo prodotto |
+| `--product-file=PERCORSO` | Limita agli ID prodotto elencati in un file CSV o di testo (vedi [File prodotti](#file-prodotti)) |
 | `--category=ID` | Limita ai prodotti associati alla categoria (`category_product`, quindi anche quelli con categoria predefinita diversa) |
 | `--with-subcategories` | Con `--category`, include le sottocategorie (nested set `nleft`/`nright`). Va specificato esplicitamente: senza l'opzione le sottocategorie sono escluse |
 | `--type=NOME` | Tipo di thumbnail (es. `home_default`). Ripetibile, accetta anche `--type=a,b`. Default: tutti i tipi prodotto |
@@ -88,7 +91,24 @@ php bin/console thumbregen:products:regenerate [opzioni]
 | `--batch-size=N` | Prodotti per batch, con liberazione memoria tra un batch e l'altro. Default `50` |
 | `--memory-limit=VAL` | `memory_limit` PHP del run. Default `1G` (`-1` = illimitato). Il solo bootstrap di PrestaShop + Symfony occupa già 50-110 MB, quindi non scendere sotto `256M` |
 
-`--product` e `--category` sono mutuamente esclusivi; `--with-subcategories` richiede `--category`. Senza nessuno dei due si elabora tutto il catalogo.
+`--product`, `--product-file` e `--category` sono mutuamente esclusivi; `--with-subcategories` richiede `--category`. Senza nessuno di questi si elabora tutto il catalogo.
+
+#### File prodotti
+
+`--product-file` legge un prodotto per riga, con l'ID nella **prima colonna**: un semplice elenco di ID, oppure un export CSV (es. dal back office o da un foglio di calcolo) la cui prima colonna è `id_product`.
+
+```csv
+id_product;name
+42;"Pastiglie freno, anteriori"
+57;Filtro olio
+```
+
+- Le colonne possono essere separate da `,` `;` tab o `|`; i valori possono essere tra virgolette; BOM UTF-8 e fine riga Windows sono gestiti.
+- Una prima riga la cui prima colonna non è un ID è considerata intestazione e saltata. Le righe vuote sono saltate.
+- Qualunque altro valore che non sia un intero positivo è un errore (exit `1`, con il numero di riga): non viene elaborato nulla.
+- Gli ID duplicati sono elaborati una volta sola. I prodotti sono elaborati in ordine di ID, non nell'ordine del file.
+- Gli ID inesistenti (o, in multistore, non associati allo shop) sono elencati in un warning e ignorati (exit `0`).
+- Un percorso relativo è risolto dalla directory corrente (di solito la root del negozio).
 
 #### Esempi
 
@@ -96,6 +116,7 @@ php bin/console thumbregen:products:regenerate [opzioni]
 |---|---|
 | Tutte le immagini di tutti i prodotti | `thumbregen:products:regenerate` |
 | Tutte le immagini di un prodotto | `thumbregen:products:regenerate --product=42` |
+| Tutte le immagini dei prodotti elencati in un file | `thumbregen:products:regenerate --product-file=var/ids.csv` |
 | Tutte le immagini di una categoria | `thumbregen:products:regenerate --category=12` |
 | Idem, con sottocategorie | `thumbregen:products:regenerate --category=12 --with-subcategories` |
 | Un thumbnail per tutti i prodotti | `thumbregen:products:regenerate --type=home_default` |
@@ -140,7 +161,7 @@ Un errore fatale a metà run (es. DB non più raggiungibile dopo i tentativi di 
 ## Comportamento tecnico
 
 - **Limiti**: all'avvio `set_time_limit(0)` e `ini_set('memory_limit', …)`; se `ini_set` è disabilitata o rifiutata viene stampato un warning e il run prosegue.
-- **Selezione**: paginazione per ID prodotto (keyset), mai l'intero catalogo in memoria. In multistore prodotti e immagini sono filtrati con `product_shop` / `image_shop` dello shop scelto.
+- **Selezione**: paginazione per ID prodotto (keyset), mai l'intero catalogo in memoria. Con `--product-file` in memoria c'è solo l'elenco degli ID, interrogato a blocchi (al massimo 1000 ID per query). In multistore prodotti e immagini sono filtrati con `product_shop` / `image_shop` dello shop scelto.
 - **Rigenerazione**: stesso percorso del back office (`AdminImagesController::_regenerateNewImages`): `ImageManager::resize()` sull'originale `{id_image}.jpg` con larghezza/altezza dell'`ImageType`, per ogni formato configurato e, se `PS_HIGHT_DPI` è attivo, anche la variante `2x`. Il formato reale dei `.jpg` resta deciso da `PS_IMAGE_QUALITY`, come nel core.
 - **Differenze tra versioni** (isolate in `ThumbnailRegenerator::resolveGenerationFormats()`):
   - PS 8.0: solo `.jpg`.
@@ -168,10 +189,11 @@ thumbregen/
     ├── Model/
     │   ├── ImageResult.php        # esito di una singola immagine
     │   ├── RunReport.php          # contatori e messaggi del run
-    │   └── SelectionCriteria.php  # prodotto / categoria (± sottocategorie) / catalogo
+    │   └── SelectionCriteria.php  # prodotto / elenco prodotti / categoria (± sottocategorie) / catalogo
     └── Service/
         ├── DatabaseClient.php     # query read-only con riconnessione
         ├── ImageTypeProvider.php  # tipi immagine prodotto e validazione --type
+        ├── ProductIdFileReader.php # lettura di --product-file
         ├── ProductSelector.php    # selezione prodotti e immagini per batch
         └── ThumbnailRegenerator.php
 ```

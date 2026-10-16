@@ -15,6 +15,9 @@ services:
     arguments:
       - '@thumbregen.database_client'
 
+  thumbregen.product_id_file_reader:
+    class: Marsaldev\Module\ThumbRegen\Service\ProductIdFileReader
+
   thumbregen.thumbnail_regenerator:
     class: Marsaldev\Module\ThumbRegen\Service\ThumbnailRegenerator
     arguments:
@@ -28,6 +31,7 @@ services:
       - '@thumbregen.image_type_provider'
       - '@thumbregen.database_client'
       - '@prestashop.adapter.legacy_context_loader'
+      - '@thumbregen.product_id_file_reader'
     tags:
       - { name: console.command, command: 'thumbregen:products:regenerate' }
 

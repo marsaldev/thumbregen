@@ -217,6 +217,35 @@ expect_exit 2 'unwritable image folder' thumbregen:products:regenerate --product
     && expect_output 'error reported' 'not writable'
 docker exec "$PS" chmod 755 "/var/www/html/$DIR"
 
+# Product list from a file: header, CRLF, quoted columns, duplicates and unknown IDs.
+# The 2nd and 3rd products are deleted from ps_product, so that with --batch-size=1 the selection has to
+# skip empty chunks in the middle of the list (the database is thrown away at the end anyway).
+IDS="$(sql 'SELECT id_product FROM ps_product ORDER BY id_product LIMIT 4')"
+FIRST="$(sed -n 1p <<< "$IDS")"
+{
+    printf 'id_product;name\r\n'
+    sed 's/$/;"name, with comma"\r/' <<< "$IDS"
+    echo "$FIRST"
+    echo 999999
+} > "$WORK/ids.csv"
+printf '1\nnot-an-id\n' > "$WORK/invalid.csv"
+docker cp "$WORK/ids.csv" "$PS:/tmp/ids.csv"
+docker cp "$WORK/invalid.csv" "$PS:/tmp/invalid.csv"
+docker exec "$PS" chmod 644 /tmp/ids.csv /tmp/invalid.csv
+sql "DELETE FROM ps_product WHERE id_product IN ($(sed -n '2,3p' <<< "$IDS" | paste -sd, -))"
+expect_exit 0 '--product-file, --batch-size=1' thumbregen:products:regenerate --product-file=/tmp/ids.csv --type=small_default --batch-size=1 \
+    && {
+        [ "$(summary_value 'Products processed')" = 2 ] && pass 'product file: 2 existing products' \
+            || fail "product file: expected 2 products, got $(summary_value 'Products processed')" "$OUT"
+        expect_output 'unknown IDs reported' '3 product ID\(s\) of the file do not exist'
+    }
+expect_exit 1 '--product-file with an invalid ID' thumbregen:products:regenerate --product-file=/tmp/invalid.csv \
+    && expect_output '  message' 'invalid product ID "not-an-id" on line 2'
+expect_exit 1 'missing --product-file' thumbregen:products:regenerate --product-file=/tmp/does-not-exist.csv \
+    && expect_output '  message' 'does not exist or is not readable'
+expect_exit 1 '--product-file with --category' thumbregen:products:regenerate --product-file=/tmp/ids.csv --category=2 \
+    && expect_output '  message' 'cannot be used together'
+
 echo
 if [ "$FAILURES" -gt 0 ]; then
     echo "== $FAILURES test(s) failed on prestashop/prestashop:$TAG"

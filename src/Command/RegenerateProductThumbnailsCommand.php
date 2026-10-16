@@ -13,6 +13,7 @@ use Marsaldev\Module\ThumbRegen\Model\RunReport;
 use Marsaldev\Module\ThumbRegen\Model\SelectionCriteria;
 use Marsaldev\Module\ThumbRegen\Service\DatabaseClient;
 use Marsaldev\Module\ThumbRegen\Service\ImageTypeProvider;
+use Marsaldev\Module\ThumbRegen\Service\ProductIdFileReader;
 use Marsaldev\Module\ThumbRegen\Service\ProductSelector;
 use Marsaldev\Module\ThumbRegen\Service\ThumbnailRegenerator;
 use PrestaShop\PrestaShop\Adapter\LegacyContextLoader;
@@ -37,6 +38,9 @@ class RegenerateProductThumbnailsCommand extends Command
     const DEFAULT_BATCH_SIZE = 50;
     const DEFAULT_MEMORY_LIMIT = '1G';
 
+    // How many missing IDs of --product-file are listed in the warning.
+    const MAX_LISTED_MISSING_IDS = 20;
+
     protected static $defaultName = 'thumbregen:products:regenerate';
 
     /** @var ProductSelector */
@@ -54,6 +58,9 @@ class RegenerateProductThumbnailsCommand extends Command
     /** @var LegacyContextLoader */
     private $contextLoader;
 
+    /** @var ProductIdFileReader */
+    private $productIdFileReader;
+
     /** @var OutputInterface */
     private $errorOutput;
 
@@ -65,13 +72,15 @@ class RegenerateProductThumbnailsCommand extends Command
         ThumbnailRegenerator $regenerator,
         ImageTypeProvider $imageTypeProvider,
         DatabaseClient $db,
-        LegacyContextLoader $contextLoader
+        LegacyContextLoader $contextLoader,
+        ProductIdFileReader $productIdFileReader
     ) {
         $this->productSelector = $productSelector;
         $this->regenerator = $regenerator;
         $this->imageTypeProvider = $imageTypeProvider;
         $this->db = $db;
         $this->contextLoader = $contextLoader;
+        $this->productIdFileReader = $productIdFileReader;
 
         parent::__construct();
     }
@@ -80,8 +89,9 @@ class RegenerateProductThumbnailsCommand extends Command
     {
         $this
             ->setName(self::$defaultName)
-            ->setDescription('Regenerates product image thumbnails, optionally limited to a product, a category or some image types')
+            ->setDescription('Regenerates product image thumbnails, optionally limited to a product, a list of products, a category or some image types')
             ->addOption('product', null, InputOption::VALUE_REQUIRED, 'Only this product ID')
+            ->addOption('product-file', null, InputOption::VALUE_REQUIRED, 'Only the product IDs listed in this CSV/text file (first column, one per row, header allowed)')
             ->addOption('category', null, InputOption::VALUE_REQUIRED, 'Only products associated with this category ID (category_product)')
             ->addOption('with-subcategories', null, InputOption::VALUE_NONE, 'With --category, also include products of its subcategories')
             ->addOption('type', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Image type name (e.g. home_default). Repeatable. Default: all product image types')
@@ -97,6 +107,7 @@ actionWatermark modules, like the back office does. Original images are never mo
 
   <info>%command.full_name%</info>                                        all products, all types
   <info>%command.full_name% --product=42</info>                           one product
+  <info>%command.full_name% --product-file=ids.csv</info>                 the products listed in a file
   <info>%command.full_name% --category=12 --with-subcategories</info>     a category and its subtree
   <info>%command.full_name% --type=home_default --type=large_default</info>
   <info>%command.full_name% --category=12 --type=home_default --dry-run</info>
@@ -135,6 +146,7 @@ HELP
             if (null !== $options['shop_id'] && !$criteria->isMultistore()) {
                 $io->warning('Multistore is not active: --shop-id only sets the configuration context, products and images are not filtered by shop.');
             }
+            $missingProductIds = $this->productSelector->findMissingProductIds($criteria);
             $this->regenerator->prepare($shopId);
 
             if (!$this->regenerator->isProductImageDirWritable()) {
@@ -157,6 +169,7 @@ HELP
         }
 
         $this->printHeader($io, $options, $criteria, $imageTypes, $total);
+        $this->printMissingProductIds($io, $criteria, $missingProductIds);
 
         if (0 === $total) {
             $io->warning('No product matches the selection.');
@@ -263,10 +276,11 @@ HELP
     {
         $productId = $this->parsePositiveInt($input->getOption('product'), 'product');
         $categoryId = $this->parsePositiveInt($input->getOption('category'), 'category');
+        $productFile = trim((string) $input->getOption('product-file'));
         $withSubcategories = (bool) $input->getOption('with-subcategories');
 
-        if (null !== $productId && null !== $categoryId) {
-            throw new \InvalidArgumentException('--product and --category cannot be used together.');
+        if (count(array_filter([null !== $productId, null !== $categoryId, '' !== $productFile])) > 1) {
+            throw new \InvalidArgumentException('--product, --product-file and --category cannot be used together.');
         }
         if ($withSubcategories && null === $categoryId) {
             throw new \InvalidArgumentException('--with-subcategories requires --category.');
@@ -289,8 +303,17 @@ HELP
             throw new \InvalidArgumentException(sprintf('Invalid --memory-limit "%s": use a value like 512M, 2G or -1.', $memoryLimit));
         }
 
+        $productIds = null;
+        if ('' !== $productFile) {
+            $productIds = $this->productIdFileReader->read($productFile);
+            $realPath = realpath($productFile);
+            $productFile = false !== $realPath ? $realPath : $productFile;
+        }
+
         return [
             'product_id' => $productId,
+            'product_file' => '' !== $productFile ? $productFile : null,
+            'product_ids' => $productIds,
             'category_id' => $categoryId,
             'with_subcategories' => $withSubcategories,
             'types' => array_values(array_unique($types)),
@@ -390,6 +413,10 @@ HELP
             return new SelectionCriteria($shopId, $multistore, $options['product_id']);
         }
 
+        if (null !== $options['product_ids']) {
+            return new SelectionCriteria($shopId, $multistore, null, null, null, null, $options['product_ids']);
+        }
+
         if (null !== $options['category_id']) {
             $category = $this->productSelector->getCategory($options['category_id']);
             if (null === $category) {
@@ -424,6 +451,8 @@ HELP
     {
         if (null !== $criteria->getProductId()) {
             $selection = sprintf('product #%d', $criteria->getProductId());
+        } elseif (null !== $criteria->getProductIds()) {
+            $selection = sprintf('%d product ID(s) from %s', count($criteria->getProductIds()), $options['product_file']);
         } elseif (null !== $criteria->getCategoryId()) {
             $selection = sprintf(
                 'category #%d %s subcategories',
@@ -446,6 +475,30 @@ HELP
             sprintf('Existing thumbnails: %s', $options['delete_old'] ? 'deleted first' : 'overwritten'),
             sprintf('Batch size: %d, memory limit: %s', $options['batch_size'], ini_get('memory_limit')),
         ]);
+    }
+
+    /**
+     * IDs of --product-file that are not processed: a warning, not an error, since the file may be older than the catalog.
+     *
+     * @param SymfonyStyle $io
+     * @param SelectionCriteria $criteria
+     * @param int[] $missingProductIds
+     */
+    private function printMissingProductIds(SymfonyStyle $io, SelectionCriteria $criteria, array $missingProductIds)
+    {
+        if (empty($missingProductIds)) {
+            return;
+        }
+
+        $listed = array_slice($missingProductIds, 0, self::MAX_LISTED_MISSING_IDS);
+        $more = count($missingProductIds) - count($listed);
+        $io->warning(sprintf(
+            '%d product ID(s) of the file do not exist%s and are ignored: %s%s',
+            count($missingProductIds),
+            $criteria->isMultistore() ? sprintf(' or are not associated with shop #%d', $criteria->getShopId()) : '',
+            implode(', ', $listed),
+            $more > 0 ? sprintf(' and %d more', $more) : ''
+        ));
     }
 
     /**

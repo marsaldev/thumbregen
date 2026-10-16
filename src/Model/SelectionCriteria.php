@@ -7,7 +7,8 @@
 namespace Marsaldev\Module\ThumbRegen\Model;
 
 /**
- * Which products a run targets: a single product, a category (optionally with its subtree) or the whole catalog.
+ * Which products a run targets: a single product, a list of products, a category (optionally with its subtree)
+ * or the whole catalog.
  */
 class SelectionCriteria
 {
@@ -29,6 +30,9 @@ class SelectionCriteria
     /** @var int|null */
     private $categoryRight;
 
+    /** @var int[]|null */
+    private $productIds;
+
     /**
      * @param int $shopId
      * @param bool $multistore when true, products and images are filtered through product_shop / image_shop
@@ -36,8 +40,9 @@ class SelectionCriteria
      * @param int|null $categoryId
      * @param int|null $categoryLeft nested set bounds, only set when subcategories are included
      * @param int|null $categoryRight
+     * @param int[]|null $productIds explicit list of products (e.g. from --product-file)
      */
-    public function __construct($shopId, $multistore, $productId = null, $categoryId = null, $categoryLeft = null, $categoryRight = null)
+    public function __construct($shopId, $multistore, $productId = null, $categoryId = null, $categoryLeft = null, $categoryRight = null, $productIds = null)
     {
         $this->shopId = (int) $shopId;
         $this->multistore = (bool) $multistore;
@@ -45,6 +50,12 @@ class SelectionCriteria
         $this->categoryId = null !== $categoryId ? (int) $categoryId : null;
         $this->categoryLeft = null !== $categoryLeft ? (int) $categoryLeft : null;
         $this->categoryRight = null !== $categoryRight ? (int) $categoryRight : null;
+        if (null !== $productIds) {
+            // Sorted and unique: ProductSelector pages the list by ID, like the other selections.
+            $productIds = array_values(array_unique(array_map('intval', (array) $productIds)));
+            sort($productIds);
+        }
+        $this->productIds = $productIds;
     }
 
     /**
@@ -101,5 +112,13 @@ class SelectionCriteria
     public function getCategoryRight()
     {
         return $this->categoryRight;
+    }
+
+    /**
+     * @return int[]|null unique IDs in ascending order, null when the selection is not a list
+     */
+    public function getProductIds()
+    {
+        return $this->productIds;
     }
 }

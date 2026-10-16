@@ -9,13 +9,16 @@ namespace Marsaldev\Module\ThumbRegen\Service;
 use Marsaldev\Module\ThumbRegen\Model\SelectionCriteria;
 
 /**
- * Selects product IDs (by product, category, category subtree or whole catalog) and their images.
+ * Selects product IDs (by product, list of products, category, category subtree or whole catalog) and their images.
  *
  * Products are paginated by ID (keyset pagination), so the catalog is never loaded in memory
- * and the cost of each page does not grow with the offset.
+ * and the cost of each page does not grow with the offset. A list of products is queried in
+ * chunks, so the SQL stays small whatever the size of the list.
  */
 class ProductSelector
 {
+    const ID_CHUNK_SIZE = 1000;
+
     /** @var DatabaseClient */
     private $db;
 
@@ -79,7 +82,41 @@ class ProductSelector
      */
     public function countProducts(SelectionCriteria $criteria)
     {
-        return (int) $this->db->getValue('SELECT COUNT(DISTINCT p.`id_product`)' . $this->buildFromWhere($criteria));
+        if (null === $criteria->getProductIds()) {
+            return (int) $this->db->getValue('SELECT COUNT(DISTINCT p.`id_product`)' . $this->buildFromWhere($criteria));
+        }
+
+        $count = 0;
+        foreach (array_chunk($criteria->getProductIds(), self::ID_CHUNK_SIZE) as $chunk) {
+            $count += (int) $this->db->getValue('SELECT COUNT(DISTINCT p.`id_product`)' . $this->buildFromWhere($criteria, $chunk));
+        }
+
+        return $count;
+    }
+
+    /**
+     * IDs of the list that do not exist, or are not associated with the shop in multistore.
+     *
+     * @param SelectionCriteria $criteria
+     *
+     * @return int[]
+     */
+    public function findMissingProductIds(SelectionCriteria $criteria)
+    {
+        if (null === $criteria->getProductIds()) {
+            return [];
+        }
+
+        $missing = [];
+        foreach (array_chunk($criteria->getProductIds(), self::ID_CHUNK_SIZE) as $chunk) {
+            $rows = $this->db->executeS('SELECT DISTINCT p.`id_product`' . $this->buildFromWhere($criteria, $chunk));
+            $found = array_map('intval', array_column($rows, 'id_product'));
+            foreach (array_diff($chunk, $found) as $productId) {
+                $missing[] = $productId;
+            }
+        }
+
+        return $missing;
     }
 
     /**
@@ -91,6 +128,10 @@ class ProductSelector
      */
     public function fetchProductIds(SelectionCriteria $criteria, $afterProductId, $limit)
     {
+        if (null !== $criteria->getProductIds()) {
+            return $this->fetchListedProductIds($criteria, $afterProductId, $limit);
+        }
+
         $rows = $this->db->executeS(
             'SELECT DISTINCT p.`id_product`' . $this->buildFromWhere($criteria)
             . ' AND p.`id_product` > ' . (int) $afterProductId
@@ -129,11 +170,54 @@ class ProductSelector
     }
 
     /**
+     * Next IDs of the list after $afterProductId that exist. Chunks with no existing product are
+     * skipped, so an empty result always means the end of the list.
+     *
      * @param SelectionCriteria $criteria
+     * @param int $afterProductId
+     * @param int $limit
+     *
+     * @return int[]
+     */
+    private function fetchListedProductIds(SelectionCriteria $criteria, $afterProductId, $limit)
+    {
+        $productIds = $criteria->getProductIds();
+        $total = count($productIds);
+
+        // Binary search of the first ID greater than $afterProductId (the list is sorted).
+        $offset = 0;
+        $high = $total;
+        while ($offset < $high) {
+            $middle = ($offset + $high) >> 1;
+            if ($productIds[$middle] <= $afterProductId) {
+                $offset = $middle + 1;
+            } else {
+                $high = $middle;
+            }
+        }
+
+        while ($offset < $total) {
+            $chunk = array_slice($productIds, $offset, (int) $limit);
+            $offset += count($chunk);
+            $rows = $this->db->executeS(
+                'SELECT DISTINCT p.`id_product`' . $this->buildFromWhere($criteria, $chunk)
+                . ' ORDER BY p.`id_product` ASC'
+            );
+            if (!empty($rows)) {
+                return array_map('intval', array_column($rows, 'id_product'));
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param SelectionCriteria $criteria
+     * @param int[]|null $productIds chunk of the criteria's product list, required when the criteria has one
      *
      * @return string
      */
-    private function buildFromWhere(SelectionCriteria $criteria)
+    private function buildFromWhere(SelectionCriteria $criteria, $productIds = null)
     {
         $sql = ' FROM `' . _DB_PREFIX_ . 'product` p';
         $where = ' WHERE 1';
@@ -145,6 +229,14 @@ class ProductSelector
 
         if (null !== $criteria->getProductId()) {
             $where .= ' AND p.`id_product` = ' . $criteria->getProductId();
+        }
+
+        if (null !== $criteria->getProductIds()) {
+            if (empty($productIds)) {
+                // Never fall back to the whole catalog when a list is expected.
+                throw new \LogicException('A product list selection must be queried by chunk.');
+            }
+            $where .= ' AND p.`id_product` IN (' . implode(',', array_map('intval', $productIds)) . ')';
         }
 
         if (null !== $criteria->getCategoryId()) {
